@@ -1,0 +1,54 @@
+---
+# Producer Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-producer
+  namespace: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-producer
+  template:
+    metadata:
+      labels:
+        app: kafka-producer
+    spec:
+      containers:
+      - name: producer
+        image: kafka-producer:latest
+        imagePullPolicy: Never  # Change to IfNotPresent for deployed images
+        env:
+        - name: KAFKA_BROKERS
+          value: "kafka:9092"
+        - name: KAFKA_TOPIC
+          value: "test-topic"
+        - name: MESSAGE_COUNT
+          value: "100"
+        - name: MESSAGE_INTERVAL
+          value: "1000"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        restartPolicy: OnFailure
+      restartPolicy: OnFailure
+
+---
+# Producer Service (optional, for debugging)
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-producer
+  namespace: kafka
+spec:
+  selector:
+    app: kafka-producer
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080

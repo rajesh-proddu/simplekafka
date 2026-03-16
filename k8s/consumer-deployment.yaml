@@ -1,0 +1,59 @@
+---
+# Consumer Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer
+  namespace: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-consumer
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer
+    spec:
+      containers:
+      - name: consumer
+        image: kafka-consumer:latest
+        imagePullPolicy: Never  # Change to IfNotPresent for deployed images
+        env:
+        - name: KAFKA_BROKERS
+          value: "kafka:9092"
+        - name: KAFKA_TOPIC
+          value: "test-topic"
+        - name: KAFKA_GROUP_ID
+          value: "consumer-group-1"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - "ps aux | grep consumer | grep -v grep"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      restartPolicy: Always
+
+---
+# Consumer Service (optional, for debugging)
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-consumer
+  namespace: kafka
+spec:
+  selector:
+    app: kafka-consumer
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080

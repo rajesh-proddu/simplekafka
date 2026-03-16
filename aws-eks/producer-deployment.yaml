@@ -1,0 +1,100 @@
+---
+# AWS EKS Producer Deployment with ECR Image
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-producer
+  namespace: kafka
+  labels:
+    app: kafka-producer
+  annotations:
+    description: "Kafka Producer for SimpleKafka"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-producer
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: kafka-producer
+      annotations:
+        prometheus.io/scrape: "false"
+    spec:
+      serviceAccountName: kafka-producer
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - kafka-consumer
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: producer
+        image: ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/kafka-producer:latest
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BROKERS
+          value: "kafka:9092"
+        - name: KAFKA_TOPIC
+          value: "test-topic"
+        - name: MESSAGE_COUNT
+          value: "1000"
+        - name: MESSAGE_INTERVAL
+          value: "500"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      restartPolicy: OnFailure
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        fsGroup: 1000
+
+---
+# Producer ServiceAccount for RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kafka-producer
+  namespace: kafka
+
+---
+# Producer Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-producer
+  namespace: kafka
+  labels:
+    app: kafka-producer
+spec:
+  selector:
+    app: kafka-producer
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
