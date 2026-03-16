@@ -3,6 +3,7 @@
 name: Docker Build & Test
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main, develop ]
     paths:
